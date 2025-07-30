@@ -5,5 +5,26 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.18.0"
-  }
+  },
+  "name": "realcodelab-backend",
+  "version": "1.0.0",
+  "description": "RealCodeLab is a real-time collaborative coding platform that allows multiple users to write, edit, and run code together. This backend is built using **FastAPI**, **Socket.IO**, and integrates **Judge0 API** for code execution.",
+  "main": "index.js",
+  "devDependencies": {},
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/symadev/realcodelab-backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/symadev/realcodelab-backend/issues"
+  },
+  "homepage": "https://github.com/symadev/realcodelab-backend#readme"
 }
