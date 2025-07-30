@@ -4,7 +4,7 @@ RealCodeLab is a real-time collaborative coding platform that allows multiple us
 
 ---
 
-## 🚀 Features
+##  Features
 
 - 🌐 Real-time collaboration with Socket.IO
 - ✍️ Live code sync using CRDT (via Yjs on frontend)
