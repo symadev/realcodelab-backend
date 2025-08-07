@@ -72,14 +72,34 @@ async function run() {
 
     app.post('/user', async (req, res) => {
       const user = req.body;
+      const existingUser = await userCollection.findOne({ email: user.email });
+      if (existingUser) {
+        return res.send({ message: 'User already exists' });
+      }
+
       const result = await userCollection.insertOne(user);
       res.send(result);
     });
 
 
 
-    
+    app.get('/me', verifyToken, async (req, res) => {
+      const decodedEmail = req.decoded.email;
+
+      const user = await userCollection.findOne({ email: decodedEmail });
+      if (!user) {
+        return res.status(404).send({ message: 'User not found' });
+      }
+
+      res.send(user);
+    });
+
+
+
+
+
     app.post('/signup', async (req, res) => {
+      //  console.log("Received data:", req.body); 
       const user = req.body;
 
 
@@ -100,14 +120,18 @@ async function run() {
 
 
 
-    app.post('/login',verifyToken, async (req, res) => {
+    app.post('/login', async (req, res) => {
       const { email, password } = req.body;
       const existingUser = await userCollection.findOne({ email });
 
-      if (!existingUser || existingUser.password !== password) {
-        return res.status(401).send({ message: 'Invalid credentials' });
+      if (!existingUser ||existingUser.password !== password) {
+        return res.status(401).send({ message: 'This User Is Not Register Yet' });
       }
-      res.send({  user: existingUser });
+      const token = jwt.sign({ email: existingUser.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+
+     
+
+      res.send({ token, user: existingUser });
     });
 
 
