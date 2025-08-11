@@ -1,201 +1,163 @@
-require('dotenv').config();
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const cors = require('cors');
-
-
-const app = express();
+import 'dotenv/config';
+import express from 'express';
+import http from 'http';
+import cors from 'cors';
+import jwt from 'jsonwebtoken';
+import { Server as IOServer } from 'socket.io';
+import { compileCode } from './judge0.js';
+import { saveSnapshot, connectMongo, getUserCollection } from './mongo.js';
 
 const PORT = process.env.PORT || 5000;
+const app = express();
 
-// Example usage of jsonwebtoken:
-// const token = jwt.sign({ userId: 123 }, process.env.JWT_SECRET, { expiresIn: '1h' });
+app.use(cors({ origin: (process.env.CORS_ORIGINS || '*').split(',') }));
+app.use(express.json());
 
-//middleWire
-app.use(cors())
-app.use(express.json())
-
-
-
-
-
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cn4mz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
+const server = http.createServer(app);
+const io = new IOServer(server, {
+  path: '/socket.io',
+  cors: { origin: (process.env.CORS_ORIGINS || '*').split(',') },
 });
 
-async function run() {
+let userCollection;
+
+// Initialize MongoDB connection and user collection before starting server
+async function init() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    await connectMongo();
+    userCollection = await getUserCollection();
+    console.log('MongoDB initialized');
 
-    const userCollection = client.db("RealCodeLab").collection("user");
-
-
-
-
-    app.post('/jwt', (req, res) => {
-
-      const user = req.body;
-      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: '1h'
-      })
-      res.send({ token });
+    // Start server after mongo connection
+    server.listen(PORT, () => {
+      console.log(`Server listening on port ${PORT}`);
     });
-
-
-
-
-    //middleware process
-    const verifyToken = (req, res, next) => {
-      console.log('inside verify token', req.headers.authorization);
-      if (!req.headers.authorization) {
-        return res.status(401).send({ message: 'unauthorized access' })
-      }
-      const token = req.headers.authorization.split(' ')[1];
-      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-        if (err) {
-          return res.status(401).send({ message: 'unauthorized access' })
-        }
-        req.decoded = decoded;
-        next(); // bar
-      });
-
-    }
-
-    app.post('/user', async (req, res) => {
-      const user = req.body;
-      const existingUser = await userCollection.findOne({ email: user.email });
-      if (existingUser) {
-        return res.send({ message: 'User already exists' });
-      }
-
-      const result = await userCollection.insertOne(user);
-      res.send(result);
-    });
-
-
-
-    app.get('/me', verifyToken, async (req, res) => {
-      const decodedEmail = req.decoded.email;
-
-      const user = await userCollection.findOne({ email: decodedEmail });
-      if (!user) {
-        return res.status(404).send({ message: 'User not found' });
-      }
-
-      res.send(user);
-    });
-
-
-
-
-
-    app.post('/signup', async (req, res) => {
-      //  console.log("Received data:", req.body); 
-      const user = req.body;
-
-
-      const existingUser = await userCollection.findOne({ email: user.email });
-      if (existingUser) {
-        return res.status(400).send({ message: 'User already exists' });
-      }
-
-      // Save new user
-      const result = await userCollection.insertOne(user);
-
-      // Generate token
-      const token = jwt.sign({ email: user.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
-
-      res.send({ token, user });
-    });
-
-
-
-
-    app.post('/login', async (req, res) => {
-      const { email, password } = req.body;
-      const existingUser = await userCollection.findOne({ email });
-
-      if (!existingUser ||existingUser.password !== password) {
-        return res.status(401).send({ message: 'This User Is Not Register Yet' });
-      }
-      const token = jwt.sign({ email: existingUser.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
-
-     
-
-      res.send({ token, user: existingUser });
-    });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
+  } catch (err) {
+    console.error('Failed to start server:', err);
+    process.exit(1);
   }
 }
-run().catch(console.dir);
+
+// JWT verification middleware
+function verifyToken(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).send({ message: 'Unauthorized' });
+
+  const token = authHeader.split(' ')[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) return res.status(401).send({ message: 'Unauthorized' });
+    req.decoded = decoded;
+    next();
+  });
+}
+
+// Routes of editor and compiler
 
 
-app.get('/', (req, res) => {
-  res.send('Hello, Express!');
+
+app.post('/compile', async (req, res) => {
+  try {
+    const data = await compileCode(req.body);
+    res.json(data);
+  } catch (error) {
+    console.error('Compile error:', error);
+    res.status(502).json({ status: 'Internal Error', stderr: 'Compiler unavailable' });
+  }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.post('/rooms/:id/snapshot', async (req, res) => {
+  try {
+    await saveSnapshot(req.params.id, req.body.text || '');
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Snapshot save error:', error);
+    res.status(500).json({ ok: false });
+  }
 });
+
+app.post('/jwt', (req, res) => {
+  const user = req.body;
+  const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+  res.send({ token });
+});
+
+app.post('/signup', async (req, res) => {
+  try {
+    if (!userCollection) return res.status(500).send({ message: 'DB not connected' });
+    const user = req.body;
+    const existingUser = await userCollection.findOne({ email: user.email });
+    if (existingUser) return res.status(400).send({ message: 'User already exists' });
+
+   
+    await userCollection.insertOne(user);
+
+    const token = jwt.sign({ email: user.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+    res.send({ token, user });
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).send({ message: 'Signup failed' });
+  }
+});
+
+app.post('/login', async (req, res) => {
+  try {
+    if (!userCollection) return res.status(500).send({ message: 'DB not connected' });
+    const { email, password } = req.body;
+    const user = await userCollection.findOne({ email });
+    if (!user || user.password !== password) {
+      return res.status(401).send({ message: 'Invalid credentials' });
+    }
+    const token = jwt.sign({ email: user.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+    res.send({ token, user });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).send({ message: 'Login failed' });
+  }
+});
+
+app.get('/me', verifyToken, async (req, res) => {
+  try {
+    if (!userCollection) return res.status(500).send({ message: 'DB not connected' });
+    const email = req.decoded.email;
+    const user = await userCollection.findOne({ email });
+    if (!user) return res.status(404).send({ message: 'User not found' });
+    res.send(user);
+  } catch (error) {
+    console.error('/me error:', error);
+    res.status(500).send({ message: 'Failed' });
+  }
+});
+
+app.get('/', (_, res) => res.send('RealCodeLab backend is running'));
+
+// Socket.IO
+
+io.on('connection', (socket) => {
+  console.log('Socket connected:', socket.id);
+
+  socket.on('join_room', ({ room_id, name }) => {
+    socket.join(room_id);
+    console.log(`${name} (${socket.id}) joined ${room_id}`);
+    io.to(room_id).emit('presence', { type: 'join', id: socket.id, name });
+  });
+
+  socket.on('cursor_update', ({ room_id, cursor }) => {
+    socket.to(room_id).emit('cursor_update', { id: socket.id, cursor });
+  });
+
+  socket.on('disconnecting', () => {
+    const rooms = Array.from(socket.rooms);
+    rooms.forEach((room) => {
+      if (room !== socket.id) {
+        io.to(room).emit('presence', { type: 'leave', id: socket.id });
+      }
+    });
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Socket disconnected:', socket.id);
+  });
+});
+
+// Start initialize
+init();

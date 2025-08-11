@@ -1,16 +1,17 @@
 {
   "dependencies": {
+    "axios": "^1.11.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "mongodb": "^6.18.0"
+    "mongodb": "^6.18.0",
+    "socket.io": "^4.8.1"
   },
   "name": "realcodelab-backend",
   "version": "1.0.0",
-  "description": "RealCodeLab is a real-time collaborative coding platform that allows multiple users to write, edit, and run code together. This backend is built using **FastAPI**, **Socket.IO**, and integrates **Judge0 API** for code execution.",
+  "description": "RealCodeLab is a real-time collaborative coding platform that allows multiple users to write, edit, and run code together. This backend is built using Node.js, Express, Socket.IO, and integrates Judge0 API for code execution.",
   "main": "index.js",
-  "devDependencies": {},
   "scripts": {
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -22,7 +23,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/symadev/realcodelab-backend/issues"
   },
