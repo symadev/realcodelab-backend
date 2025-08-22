@@ -4,8 +4,8 @@ import http from 'http';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import { Server as IOServer } from 'socket.io';
-import { compileCode } from './judge0.js';
-import { saveSnapshot, connectMongo, getUserCollection } from './mongo.js';
+import { compileCode } from './judge0.js';  // Ensure you have this function
+import { connectMongo, getUserCollection, saveSnapshot } from './mongo.js';  // Assuming you have mongo.js for MongoDB functions
 
 const PORT = process.env.PORT || 5000;
 const app = express();
@@ -24,8 +24,8 @@ let userCollection;
 // Initialize MongoDB connection and user collection before starting server
 async function init() {
   try {
-    await connectMongo();
-    userCollection = await getUserCollection();
+    await connectMongo(); // Ensure connectMongo is defined in mongo.js
+    userCollection = await getUserCollection();  // Ensure getUserCollection is defined in mongo.js
     console.log('MongoDB initialized');
 
     // Start server after mongo connection
@@ -52,12 +52,9 @@ function verifyToken(req, res, next) {
 }
 
 // Routes of editor and compiler
-
-
-
 app.post('/compile', async (req, res) => {
   try {
-    const data = await compileCode(req.body);
+    const data = await compileCode(req.body); // Make sure compileCode function exists
     res.json(data);
   } catch (error) {
     console.error('Compile error:', error);
@@ -67,7 +64,7 @@ app.post('/compile', async (req, res) => {
 
 app.post('/rooms/:id/snapshot', async (req, res) => {
   try {
-    await saveSnapshot(req.params.id, req.body.text || '');
+    await saveSnapshot(req.params.id, req.body.text || '');  // Ensure saveSnapshot exists
     res.json({ ok: true });
   } catch (error) {
     console.error('Snapshot save error:', error);
@@ -88,7 +85,6 @@ app.post('/signup', async (req, res) => {
     const existingUser = await userCollection.findOne({ email: user.email });
     if (existingUser) return res.status(400).send({ message: 'User already exists' });
 
-   
     await userCollection.insertOne(user);
 
     const token = jwt.sign({ email: user.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
@@ -131,7 +127,6 @@ app.get('/me', verifyToken, async (req, res) => {
 app.get('/', (_, res) => res.send('RealCodeLab backend is running'));
 
 // Socket.IO
-
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
 
