@@ -1,44 +1,42 @@
-import { setupWSConnection } from 'y-websocket/bin/utils.js'; // v1.4.5 এ ঠিক আছে
+import { setupWSConnection } from 'y-websocket/bin/utils.js';
 import WebSocket from 'ws';
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
-
 import jwt from 'jsonwebtoken';
+import { Server } from 'socket.io';
+
 import { connectMongo, getUserCollection, saveSnapshot } from './mongo.js';
 import { compileCode, getSubmission } from "./judge0.js";
 
-const cors = require('cors');
+// Express app
+const app = express();
 
+// CORS options
 const corsOptions = {
   origin: [
     'http://localhost:5173',
     'http://localhost:3000',
     'https://rhtradingglobal.com',
-   
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 
+// Apply middleware
 app.use(cors(corsOptions));
-
-
 app.options('*', cors(corsOptions));
-
-const PORT = process.env.PORT || 5000;
-const app = express();
-
-
-
 app.use(express.json());
 
-// HTTP + Socket.IO server
+// HTTP server
+const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
+// Socket.IO
+const io = new Server(server, { cors: corsOptions });
 
-// Yjs WebSocket server at /yjs
+// Yjs WebSocket server
 const wss = new WebSocket.Server({ server, path: '/yjs' });
 wss.on('connection', (ws, req) => setupWSConnection(ws, req));
 
