@@ -8,8 +8,6 @@ import jwt from 'jsonwebtoken';
 import { connectMongo, getUserCollection, saveSnapshot } from './mongo.js';
 import { compileCode, getSubmission } from "./judge0.js";
 
-const PORT = process.env.PORT || 5000;
-const app = express();
 app.use(cors({
   origin: ['http://localhost:5173', 'https://rhtradingglobal.com'],
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
@@ -19,6 +17,10 @@ app.use(cors({
 
 // Optional: OPTIONS preflight response
 app.options('*', cors());
+
+const PORT = process.env.PORT || 5000;
+const app = express();
+
 
 
 app.use(express.json());
