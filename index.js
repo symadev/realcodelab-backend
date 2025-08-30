@@ -3,7 +3,7 @@ import WebSocket from 'ws';
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
-import { Server as IOServer } from 'socket.io';
+
 import jwt from 'jsonwebtoken';
 import { connectMongo, getUserCollection, saveSnapshot } from './mongo.js';
 import { compileCode, getSubmission } from "./judge0.js";
@@ -36,10 +36,7 @@ app.use(express.json());
 
 // HTTP + Socket.IO server
 const server = http.createServer(app);
-const io = new IOServer(server, {
-  path: '/socket.io',
-  cors: { origin: (process.env.CORS_ORIGINS || '*').split(',') },
-});
+
 
 // Yjs WebSocket server at /yjs
 const wss = new WebSocket.Server({ server, path: '/yjs' });
