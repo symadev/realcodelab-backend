@@ -42,7 +42,7 @@ app.use(express.json());
 const server = http.createServer(app);
 const io = new IOServer(server, {
   path: '/socket.io',
-  cors: { origin: (process.env.CORS_ORIGINS || '*').split(',') },
+  cors: { origin: ['http://localhost:5173', 'https://rhtradingglobal.com'], credentials: true },
 });
 
 // Yjs WebSocket server at /yjs
