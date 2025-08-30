@@ -1,27 +1,30 @@
-import 'dotenv/config';
+import { setupWSConnection } from 'y-websocket/bin/utils.js'; // v1.4.5 এ ঠিক আছে
+import WebSocket from 'ws';
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
-import jwt from 'jsonwebtoken';
 import { Server as IOServer } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import { connectMongo, getUserCollection, saveSnapshot } from './mongo.js';
-import { compileCode } from './judge0.js';
+import { compileCode, getSubmission } from "./judge0.js";
 
 const PORT = process.env.PORT || 5000;
 const app = express();
-
 app.use(cors({ origin: (process.env.CORS_ORIGINS || '*').split(',') }));
 app.use(express.json());
 
+// HTTP + Socket.IO server
 const server = http.createServer(app);
 const io = new IOServer(server, {
   path: '/socket.io',
   cors: { origin: (process.env.CORS_ORIGINS || '*').split(',') },
 });
 
-let userCollection;
+// Yjs WebSocket server at /yjs
+const wss = new WebSocket.Server({ server, path: '/yjs' });
+wss.on('connection', (ws, req) => setupWSConnection(ws, req));
 
-// MongoDB init
+let userCollection;
 async function init() {
   try {
     await connectMongo();
@@ -29,7 +32,7 @@ async function init() {
     console.log('MongoDB connected');
 
     server.listen(PORT, () => {
-      console.log(`Express + Socket.IO server running on port ${PORT}`);
+      console.log(`Express + Socket.IO + Yjs server running on port ${PORT}`);
     });
   } catch (err) {
     console.error('Server failed to start:', err);
@@ -49,17 +52,27 @@ function verifyToken(req, res, next) {
   });
 }
 
-// Routes
-app.post('/compile', async (req, res) => {
+// Compile / submission routes
+app.post("/compile", async (req, res) => {
   try {
-    const data = await compileCode(req.body);
-    res.json(data);
-  } catch (error) {
-    console.error(error);
-    res.status(502).json({ status: 'Internal Error', stderr: 'Compiler unavailable' });
+    const { language_id, source_code, stdin } = req.body;
+    const result = await compileCode({ language_id, source_code, stdin });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
+app.get("/submissions/:token", async (req, res) => {
+  try {
+    const result = await getSubmission(req.params.token);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Snapshot route
 app.post('/rooms/:id/snapshot', async (req, res) => {
   try {
     await saveSnapshot(req.params.id, req.body.text || '');
@@ -68,12 +81,6 @@ app.post('/rooms/:id/snapshot', async (req, res) => {
     console.error(error);
     res.status(500).json({ ok: false });
   }
-});
-
-app.post('/jwt', (req, res) => {
-  const user = req.body;
-  const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
-  res.send({ token });
 });
 
 // Auth routes
@@ -120,7 +127,7 @@ app.get('/me', verifyToken, async (req, res) => {
 
 app.get('/', (_, res) => res.send('RealCodeLab backend is running'));
 
-// Socket.IO
+// Socket.IO events
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
 

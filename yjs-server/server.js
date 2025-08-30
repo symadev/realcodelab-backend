@@ -1,6 +1,7 @@
 import { WebSocketServer } from 'ws'
-import { setupWSConnection } from 'y-websocket/bin/utils.js'
-import * as http from 'http'
+import { setupWSConnection } from 'y-websocket/bin/utils.js';
+import http from 'http';
+
 
 const port = 6000
 const server = http.createServer((req, res) => {
