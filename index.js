@@ -1,5 +1,7 @@
-import { setupWSConnection } from 'y-websocket/bin/utils.js';
-import WebSocket from 'ws';
+import dotenv from "dotenv";
+dotenv.config();
+import { setupWSConnection } from 'y-websocket/bin/utils';
+import { WebSocketServer } from 'ws';
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
@@ -11,12 +13,10 @@ import { compileCode, getSubmission } from "./judge0.js";
 
 // Express app
 const app = express();
-
 // CORS options
 const corsOptions = {
   origin: [
     'http://localhost:5173',
-    'http://localhost:3000',
     'https://rhtradingglobal.com',
   ],
   credentials: true,
@@ -37,7 +37,7 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: corsOptions });
 
 // Yjs WebSocket server
-const wss = new WebSocket.Server({ server, path: '/yjs' });
+const wss = new WebSocketServer({ server, path: "/yjs" });
 wss.on('connection', (ws, req) => setupWSConnection(ws, req));
 
 let userCollection;
